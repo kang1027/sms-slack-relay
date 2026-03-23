@@ -16,7 +16,6 @@ export async function handleSmsCommand(
   triggerId: string,
   text: string,
   userId: string,
-  channelId: string
 ) {
   const trimmed = text.trim();
 

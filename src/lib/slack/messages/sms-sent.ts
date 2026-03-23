@@ -1,5 +1,3 @@
-import { formatPhoneNumber } from "@/lib/utils/phone";
-
 interface SmsSentMessageParams {
   recipientName: string;
   phoneNumber: string;
@@ -9,7 +7,7 @@ interface SmsSentMessageParams {
 }
 
 export function buildSmsSentMessage(params: SmsSentMessageParams) {
-  const { recipientName, phoneNumber, message, senderUserId } = params;
+  const { recipientName, message, senderUserId } = params;
 
   const time = new Date().toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul",

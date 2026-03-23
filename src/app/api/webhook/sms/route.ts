@@ -21,13 +21,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const event: SmsGatewayWebhookEvent = JSON.parse(body);
+  let event: SmsGatewayWebhookEvent;
+  try {
+    event = JSON.parse(body);
+  } catch {
+    logger.warn("SMS 웹훅 본문 JSON 파싱 실패");
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
   logger.info({ eventType: event.event, webhookId: event.webhookId }, "SMS 웹훅 수신");
 
   if (event.event !== "sms:received") {
     return NextResponse.json({ ok: true });
   }
 
+  if (!event.payload?.phoneNumber || !event.payload?.message) {
+    logger.warn("SMS 웹훅 payload 필수 필드 누락");
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  try {
+    return await handleSmsReceived(event);
+  } catch (error) {
+    logger.error({ error }, "SMS 수신 처리 실패");
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}
+
+async function handleSmsReceived(event: SmsGatewayWebhookEvent) {
   const { phoneNumber: rawPhone, message, receivedAt } = event.payload;
   const phoneNumber = normalizePhoneNumber(rawPhone) ?? rawPhone;
 
@@ -51,7 +72,6 @@ export async function POST(request: NextRequest) {
   const activeThreadTs = await findActiveThread(phoneNumber);
   const isNewThread = activeThreadTs === null;
 
-  // 마지막 발신 담당자 조회
   const lastOutbound = await prisma.messageLog.findFirst({
     where: {
       phoneNumber,

@@ -28,20 +28,23 @@ export function verifySlackSignature(
 
 export async function parseSlackRequest(
   request: NextRequest
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Slack payload 구조가 action type별로 상이
 ): Promise<{ body: string; params: URLSearchParams; payload?: any } | NextResponse> {
-  const retryNum = request.headers.get("x-slack-retry-num");
-  if (retryNum && Number(retryNum) > 0) {
-    return NextResponse.json({ ok: true });
-  }
-
   const body = await request.text();
   const env = getEnv();
   const timestamp = request.headers.get("x-slack-request-timestamp") ?? "";
   const signature = request.headers.get("x-slack-signature") ?? "";
 
+  // 서명 검증을 retry 체크보다 먼저 수행 — 인증 우회 방지
   if (!verifySlackSignature(env.SLACK_SIGNING_SECRET, signature, timestamp, body)) {
     logger.warn("Slack 서명 검증 실패");
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  // 서명 검증 통과 후 retry 체크
+  const retryNum = request.headers.get("x-slack-retry-num");
+  if (retryNum && Number(retryNum) > 0) {
+    return NextResponse.json({ ok: true });
   }
 
   const params = new URLSearchParams(body);

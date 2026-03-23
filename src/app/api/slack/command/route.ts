@@ -44,17 +44,16 @@ export async function POST(request: NextRequest) {
   const triggerId = params.get("trigger_id") ?? "";
   const text = params.get("text") ?? "";
   const userId = params.get("user_id") ?? "";
-  const channelId = params.get("channel_id") ?? "";
   const responseUrl = params.get("response_url") ?? "";
 
   if (command === "/sms") {
     if (!text.trim()) {
-      const response = await handleSmsCommand(triggerId, text, userId, channelId);
+      const response = await handleSmsCommand(triggerId, text, userId);
       if (response) return NextResponse.json(response);
       return new NextResponse(null, { status: 200 });
     }
     return deferCommand(responseUrl, command, async () => {
-      const response = await handleSmsCommand(triggerId, text, userId, channelId);
+      const response = await handleSmsCommand(triggerId, text, userId);
       return response ?? { text: "완료" };
     });
   }

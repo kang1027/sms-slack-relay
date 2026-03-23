@@ -100,6 +100,13 @@ export class SmsGatewayClient {
       return false;
     }
 
+    // 타임스탬프 5분 이내 확인 — 리플레이 공격 방지
+    const ts = Number(timestamp);
+    const now = Math.floor(Date.now() / 1000);
+    if (Number.isNaN(ts) || Math.abs(now - ts) > 300) {
+      return false;
+    }
+
     try {
       const expected = createHmac("sha256", this.webhookSecret)
         .update(body + timestamp)

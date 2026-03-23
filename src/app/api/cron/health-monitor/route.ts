@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       lastLog.deviceStatus === "ok"
     : true;
 
-  await prisma.healthCheckLog.create({
+  const currentLog = await prisma.healthCheckLog.create({
     data: {
       mysqlStatus: checks.mysql,
       gatewayStatus: checks.smsGateway,
@@ -124,8 +124,8 @@ export async function GET(request: NextRequest) {
         ...message,
       });
 
-      await prisma.healthCheckLog.updateMany({
-        where: { createdAt: { gte: new Date(Date.now() - 1000) } },
+      await prisma.healthCheckLog.update({
+        where: { id: currentLog.id },
         data: { alertSent: true },
       });
 
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       logger.error({ error }, "장애 알림 발송 실패");
     }
   } else if (!wasHealthy && currentlyHealthy) {
-    // 장애 → 정상: 복구 알림
+    // 장애 → 정상: 복구 알림 (asc로 첫 번째 장애 시점 조회)
     const firstFailLog = await prisma.healthCheckLog.findFirst({
       where: {
         OR: [
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
           { deviceStatus: { not: "ok" } },
         ],
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
     const downMinutes = firstFailLog

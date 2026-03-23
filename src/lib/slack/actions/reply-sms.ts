@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils/phone";
 import { getSmsGatewayClient } from "@/lib/sms-gateway/client";
 import { getEnv } from "@/lib/config/env";
-import { buildSmsSentMessage } from "@/lib/slack/messages/sms-sent";
+import { buildSmsSentMessage, buildSmsFailedMessage } from "@/lib/slack/messages/sms-sent";
 import { logger } from "@/lib/logger";
 
 export async function handleReplySms(payload: any) {
@@ -101,7 +101,19 @@ export async function handleRetrySms(payload: any) {
   const action = payload.actions?.[0];
   if (!action?.value) return;
 
-  const { phoneNumber, message, threadTs } = JSON.parse(action.value);
+  let phoneNumber: string;
+  let message: string;
+  let threadTs: string | null = null;
+  try {
+    const parsed = JSON.parse(action.value);
+    phoneNumber = parsed.phoneNumber;
+    message = parsed.message;
+    threadTs = parsed.threadTs ?? null;
+  } catch {
+    logger.warn("재시도 action value 파싱 실패");
+    return;
+  }
+
   const normalized = normalizePhoneNumber(phoneNumber);
   if (!normalized) return;
 
@@ -142,6 +154,36 @@ export async function handleRetrySms(payload: any) {
     });
     logger.info({ phoneNumber: normalized }, "SMS 재시도 발신 성공");
   } catch (error) {
-    logger.error({ phoneNumber: normalized, error }, "SMS 재시도 발신 실패");
+    const errorMsg = error instanceof Error ? error.message : "알 수 없는 에러";
+    logger.error({ phoneNumber: normalized, error: errorMsg }, "SMS 재시도 발신 실패");
+
+    const contact = await prisma.contact.findUnique({ where: { phoneNumber: normalized } }).catch(() => null);
+    const recipientName = contact
+      ? `${contact.name} (${formatPhoneNumber(normalized)})`
+      : formatPhoneNumber(normalized);
+
+    await slackClient.chat.postMessage({
+      channel: env.SLACK_CHANNEL_CS_SMS,
+      thread_ts: threadTs ?? undefined,
+      ...buildSmsFailedMessage({
+        recipientName,
+        phoneNumber: normalized,
+        message,
+        error: errorMsg,
+        threadTs: threadTs ?? undefined,
+      }),
+    }).catch((e) => logger.error({ error: e }, "재시도 실패 알림 발송 실패"));
+
+    await prisma.messageLog.create({
+      data: {
+        direction: "outbound",
+        phoneNumber: normalized,
+        message,
+        status: "failed",
+        slackThreadTs: threadTs ?? undefined,
+        slackUserId: payload.user.id,
+        contactId: contact?.id,
+      },
+    }).catch((e) => logger.error({ error: e }, "재시도 실패 로그 기록 실패"));
   }
 }

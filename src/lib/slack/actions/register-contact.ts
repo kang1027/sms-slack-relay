@@ -8,7 +8,15 @@ export async function handleRegisterContact(payload: any) {
   const triggerId = payload.trigger_id;
   if (!action?.value || !triggerId) return;
 
-  const { phoneNumber } = JSON.parse(action.value);
+  let phoneNumber: string;
+  try {
+    const parsed = JSON.parse(action.value);
+    phoneNumber = parsed.phoneNumber;
+  } catch {
+    logger.warn("연락처 등록 action value 파싱 실패");
+    return;
+  }
+
   const slackClient = getSlackClient();
 
   await slackClient.views.open({
@@ -43,18 +51,34 @@ export async function handleRegisterContact(payload: any) {
 }
 
 export async function handleRegisterContactSubmission(payload: any) {
-  const { phoneNumber: rawPhone } = JSON.parse(payload.view.private_metadata);
-  const phoneNumber = normalizePhoneNumber(rawPhone) ?? rawPhone;
-  const name = payload.view.state.values.name_block.name_input.value;
-  const memo = payload.view.state.values.memo_block?.memo_input?.value ?? null;
+  let phoneNumber: string;
+  try {
+    const parsed = JSON.parse(payload.view?.private_metadata ?? "");
+    phoneNumber = normalizePhoneNumber(parsed.phoneNumber) ?? parsed.phoneNumber;
+  } catch {
+    return {
+      response_action: "errors" as const,
+      errors: { name_block: "잘못된 요청입니다. 다시 시도해주세요." },
+    };
+  }
+
+  const name = payload.view?.state?.values?.name_block?.name_input?.value;
+  const memo = payload.view?.state?.values?.memo_block?.memo_input?.value ?? null;
+
+  if (!name) {
+    return {
+      response_action: "errors" as const,
+      errors: { name_block: "이름을 입력하세요" },
+    };
+  }
 
   try {
     await prisma.contact.create({
       data: { phoneNumber, name, memo },
     });
     logger.info({ phoneNumber, name }, "연락처 등록 완료");
-  } catch (error: any) {
-    if (error?.code === "P2002") {
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as any).code === "P2002") {
       return {
         response_action: "errors" as const,
         errors: { name_block: "이미 등록된 번호입니다" },
