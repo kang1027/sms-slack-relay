@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id          String       @id @default(cuid())
+  name        String
+  phoneNumber String       @unique
+  memo        String?
+  messages    MessageLog[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([name])
+  @@index([phoneNumber])
+}
+
+model MessageLog {
+  id             String   @id @default(cuid())
+  direction      String
+  phoneNumber    String
+  message        String   @db.Text
+  status         String
+  slackActionId  String?  @unique
+  slackMessageTs String?
+  slackThreadTs  String?
+  slackUserId    String?
+  contact        Contact? @relation(fields: [contactId], references: [id])
+  contactId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([phoneNumber])
+  @@index([direction])
+  @@index([createdAt])
+  @@index([phoneNumber, slackThreadTs, createdAt])
+}
+
+model HealthCheckLog {
+  id             String    @id @default(cuid())
+  mysqlStatus    String
+  gatewayStatus  String
+  deviceStatus   String
+  deviceLastSeen DateTime?
+  alertSent      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+}

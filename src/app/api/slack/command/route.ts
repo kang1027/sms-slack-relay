@@ -1,0 +1,67 @@
+import { after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { parseSlackRequest } from "@/lib/slack/verify";
+import { handleSmsCommand } from "@/lib/slack/commands/sms";
+import { handleContactCommand } from "@/lib/slack/commands/contact";
+import { postToResponseUrl } from "@/lib/slack/deferred-response";
+import { logger } from "@/lib/logger";
+
+const LOADING_RESPONSE = {
+  response_type: "ephemeral" as const,
+  text: "⏳ 처리 중...",
+};
+
+/**
+ * 무거운 커맨드를 deferred 처리
+ * 즉시 "처리 중..." 응답 → after()에서 실제 처리 → response_url로 결과 전송
+ */
+function deferCommand(
+  responseUrl: string,
+  command: string,
+  handler: () => Promise<Record<string, unknown>>
+): NextResponse {
+  after(async () => {
+    try {
+      const response = await handler();
+      await postToResponseUrl(responseUrl, response);
+    } catch (error) {
+      logger.error({ error, command }, "deferred command 실패");
+      await postToResponseUrl(responseUrl, {
+        response_type: "ephemeral",
+        text: "처리 중 에러가 발생했어요.",
+      });
+    }
+  });
+  return NextResponse.json(LOADING_RESPONSE);
+}
+
+export async function POST(request: NextRequest) {
+  const result = await parseSlackRequest(request);
+  if (result instanceof NextResponse) return result;
+
+  const { params } = result;
+  const command = params.get("command");
+  const triggerId = params.get("trigger_id") ?? "";
+  const text = params.get("text") ?? "";
+  const userId = params.get("user_id") ?? "";
+  const channelId = params.get("channel_id") ?? "";
+  const responseUrl = params.get("response_url") ?? "";
+
+  if (command === "/sms") {
+    if (!text.trim()) {
+      const response = await handleSmsCommand(triggerId, text, userId, channelId);
+      if (response) return NextResponse.json(response);
+      return new NextResponse(null, { status: 200 });
+    }
+    return deferCommand(responseUrl, command, async () => {
+      const response = await handleSmsCommand(triggerId, text, userId, channelId);
+      return response ?? { text: "완료" };
+    });
+  }
+
+  if (command === "/contact") {
+    return deferCommand(responseUrl, command, () => handleContactCommand(text));
+  }
+
+  return NextResponse.json({ text: `알 수 없는 커맨드: ${command}` });
+}
