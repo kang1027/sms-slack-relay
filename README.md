@@ -1,22 +1,22 @@
 # SMS-Slack Relay
 
-[English](./README.en.md) | 한국어
+English | [한국어](./README.ko.md)
 
-Android SMS Gateway ↔ Slack 양방향 릴레이 시스템.
+Bidirectional relay system between Android SMS Gateway and Slack.
 
-Android 폰에서 수신한 SMS를 자동으로 Slack 채널에 릴레이하고, Slack에서 답장하면 해당 폰을 통해 SMS를 발송합니다.
+Automatically relays SMS received on an Android phone to a Slack channel, and sends SMS through the phone when you reply from Slack.
 
-## 주요 기능
+## Features
 
-- **SMS 수신 → Slack**: 폰에 도착한 SMS를 Slack 채널에 자동 포스팅
-- **Slack → SMS 발송**: `/sms` 커맨드 또는 모달을 통해 SMS 발송
-- **연락처 관리**: `/contact` 커맨드로 전화번호 ↔ 이름 매핑 CRUD
-- **스레드 관리**: 같은 번호와의 대화를 Slack 스레드로 묶음 (5일 TTL)
-- **중복 방지**: 30초 이내 동일 메시지 필터링
-- **담당자 멘션**: 마지막 답장한 담당자에게 자동 @멘션
-- **헬스체크**: DB, SMS Gateway, 폰 기기 연결 상태 모니터링
+- **SMS → Slack**: Automatically posts incoming SMS to a Slack channel
+- **Slack → SMS**: Send SMS via `/sms` command or modal
+- **Contact Management**: Phone number ↔ name mapping CRUD via `/contact` command
+- **Thread Management**: Groups conversations with the same number into Slack threads (5-day TTL)
+- **Deduplication**: Filters duplicate messages within 30 seconds
+- **Assignee Mention**: Auto @mentions the last person who replied
+- **Health Check**: Monitors DB, SMS Gateway, and phone device connectivity
 
-## 아키텍처
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -39,91 +39,91 @@ Android 폰에서 수신한 SMS를 자동으로 Slack 채널에 릴레이하고,
          │                              │
     ┌────┴────┐                    ┌────┴────┐
     │  Slack  │                    │ Android │
-    │  API    │                    │  폰 앱  │
+    │  API    │                    │  Phone  │
     └─────────┘                    └─────────┘
 ```
 
-## 기술 스택
+## Tech Stack
 
-| 카테고리 | 선택 |
-|---------|------|
-| 런타임 | Next.js (App Router) |
-| 언어 | TypeScript |
+| Category | Choice |
+|----------|--------|
+| Runtime | Next.js (App Router) |
+| Language | TypeScript |
 | ORM | Prisma |
 | DB | MySQL 8.0 |
 | Slack SDK | @slack/web-api |
-| 검증 | Zod |
-| 로깅 | Pino |
-| 컨테이너 | Docker Compose |
+| Validation | Zod |
+| Logging | Pino |
+| Container | Docker Compose |
 | SMS Gateway | [Android SMS Gateway](https://github.com/android-sms-gateway/server) |
-| 리버스 프록시 | Nginx |
+| Reverse Proxy | Nginx |
 
-## 설치 및 실행
+## Installation & Setup
 
-### 1. 프로젝트 클론
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/sms-slack-relay.git
 cd sms-slack-relay
 ```
 
-### 2. 의존성 설치
+### 2. Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-### 3. 환경변수 설정
+### 3. Configure Environment Variables
 
 ```bash
 cp .env.example .env
-# .env 파일에서 각 값을 채워주세요
+# Fill in each value in the .env file
 ```
 
-### 4. SSL 인증서 준비
+### 4. Prepare SSL Certificate
 
 ```bash
-# Let's Encrypt 인증서 발급 (nginx 설정에서 도메인 변경 필요)
+# Issue Let's Encrypt certificate (update domain in nginx config)
 sudo certbot certonly --standalone -d your-domain.com
 ```
 
-### 5. Docker Compose 실행
+### 5. Start Docker Compose
 
 ```bash
 docker compose up -d
 ```
 
-### 6. DB 마이그레이션
+### 6. Run DB Migration
 
 ```bash
-# 컨테이너 내에서 실행하거나 로컬에서 DATABASE_URL을 맞춘 뒤:
+# Run inside the container or locally with the correct DATABASE_URL:
 npx prisma migrate dev --name init
 ```
 
-### 7. 기본 메시지 앱 설정 (RCS 비활성화 필수)
+### 7. Default Messaging App Setup (RCS Must Be Disabled)
 
-> **⚠️ 중요**: Android SMS Gateway는 기존 SMS/MMS 프로토콜 기반으로 동작합니다. **RCS(Rich Communication Services)가 활성화된 메시지 앱에서는 웹훅이 정상 처리되지 않습니다.**
+> **⚠️ Important**: Android SMS Gateway operates on the traditional SMS/MMS protocol. **Webhooks will not work properly when RCS (Rich Communication Services) is enabled in the messaging app.**
 
-- **삼성 기본 메시지 앱**: RCS가 내장되어 있어 **별도로 RCS를 해제할 수 없습니다**. 따라서 삼성 기본 메시지 앱으로는 웹훅 수신이 동작하지 않습니다.
-- **해결 방법**: [Google 메시지](https://play.google.com/store/apps/details?id=com.google.android.apps.messaging) 앱을 설치한 뒤 **기본 SMS 앱으로 설정**하고, Google 메시지 설정에서 **RCS 채팅(채팅 기능)을 비활성화**하면 정상 동작합니다.
+- **Samsung Messages (default)**: RCS is built-in and **cannot be disabled separately**. Therefore, webhook reception will not work with Samsung's default messaging app.
+- **Solution**: Install [Google Messages](https://play.google.com/store/apps/details?id=com.google.android.apps.messaging), **set it as the default SMS app**, and **disable RCS chat (Chat features)** in Google Messages settings. This will allow the gateway to function properly.
 
-**정리하면, SMS Gateway가 동작하려면 RCS 해제가 가능한 메시지 앱이 기본 메시지 앱으로 설정되어 있어야 합니다.**
+**In short, the SMS Gateway requires a messaging app that supports disabling RCS to be set as the default messaging app.**
 
-### 8. Android SMS Gateway 앱 설정
+### 8. Android SMS Gateway App Setup
 
-1. [Android SMS Gateway](https://github.com/android-sms-gateway/android) 앱을 폰에 설치
-2. 앱 설정에서 서버 URL 입력: `https://your-domain.com/api/mobile/`
-3. Private Token 입력: `.env`의 `ASG_GATEWAY_PRIVATE_TOKEN` 값
-4. 연결 확인
+1. Install the [Android SMS Gateway](https://github.com/android-sms-gateway/android) app on your phone
+2. Enter the server URL in app settings: `https://your-domain.com/api/mobile/`
+3. Enter the Private Token: the `ASG_GATEWAY_PRIVATE_TOKEN` value from `.env`
+4. Verify the connection
 
-### 9. Slack App 설정
+### 9. Slack App Setup
 
-1. [Slack API](https://api.slack.com/apps)에서 앱 생성
-2. Bot Token Scopes 추가: `chat:write`, `commands`, `users:read`
+1. Create an app at [Slack API](https://api.slack.com/apps)
+2. Add Bot Token Scopes: `chat:write`, `commands`, `users:read`
 3. Interactivity & Shortcuts:
    - Request URL: `https://your-domain.com/api/slack/action`
    - Options Load URL: `https://your-domain.com/api/slack/options`
-4. Slash Commands 등록:
+4. Register Slash Commands:
    - `/sms` → `https://your-domain.com/api/slack/command`
    - `/contact` → `https://your-domain.com/api/slack/command`
 5. Event Subscriptions:
@@ -133,44 +133,44 @@ npx prisma migrate dev --name init
 
 ### `/sms`
 
-| 사용법 | 설명 |
-|--------|------|
-| `/sms` | SMS 발송 모달 오픈 |
-| `/sms 홍길동 안녕하세요` | 이름으로 검색해서 인라인 발송 |
-| `/sms 010-1234-5678 안녕하세요` | 번호로 직접 인라인 발송 |
+| Usage | Description |
+|-------|-------------|
+| `/sms` | Open SMS send modal |
+| `/sms John Hello` | Search by name and send inline |
+| `/sms 010-1234-5678 Hello` | Send directly by phone number |
 
 ### `/contact`
 
-| 사용법 | 설명 |
-|--------|------|
-| `/contact` | 전체 연락처 목록 |
-| `/contact 홍길동 010-1234-5678` | 연락처 추가/수정 |
-| `/contact 홍길동 010-1234-5678 메모` | 메모 포함 추가 |
-| `/contact 삭제 홍길동` | 연락처 삭제 |
+| Usage | Description |
+|-------|-------------|
+| `/contact` | List all contacts |
+| `/contact John 010-1234-5678` | Add/update contact |
+| `/contact John 010-1234-5678 notes` | Add with notes |
+| `/contact delete John` | Delete contact |
 
-## 환경변수
+## Environment Variables
 
-| 변수 | 설명 | 예시 |
-|------|------|------|
-| `SLACK_BOT_TOKEN` | Slack 봇 토큰 | `xoxb-...` |
-| `SLACK_SIGNING_SECRET` | Slack 요청 서명 검증용 | - |
-| `SLACK_CHANNEL_CS_SMS` | SMS 릴레이 채널 ID | `C0000000000` |
-| `SMS_GATEWAY_URL` | ASG 서버 내부 주소 | `http://sms-backend:3080` |
-| `SMS_GATEWAY_USERNAME` | ASG Basic Auth 유저명 | - |
-| `SMS_GATEWAY_PASSWORD` | ASG Basic Auth 패스워드 | - |
-| `SMS_GATEWAY_WEBHOOK_SECRET` | 웹훅 HMAC 서명 시크릿 | - |
-| `ASG_GATEWAY_PRIVATE_TOKEN` | 폰 앱 연결 토큰 | `openssl rand -hex 32` |
-| `DATABASE_URL` | MySQL 연결 문자열 | `mysql://toont:...@mysql:3306/toont_relay` |
-| `MYSQL_ROOT_PASSWORD` | MySQL root 패스워드 | - |
-| `APP_URL` | 외부 접근 URL | `https://your-domain.com` |
-| `CRON_SECRET` | 크론 엔드포인트 인증 | - |
-| `HEALTH_CHECK_DEVICE_THRESHOLD_MINUTES` | 기기 끊김 임계값 (분) | `30` |
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SLACK_BOT_TOKEN` | Slack bot token | `xoxb-...` |
+| `SLACK_SIGNING_SECRET` | Slack request signature verification | - |
+| `SLACK_CHANNEL_CS_SMS` | SMS relay channel ID | `C0000000000` |
+| `SMS_GATEWAY_URL` | ASG server internal URL | `http://sms-backend:3080` |
+| `SMS_GATEWAY_USERNAME` | ASG Basic Auth username | - |
+| `SMS_GATEWAY_PASSWORD` | ASG Basic Auth password | - |
+| `SMS_GATEWAY_WEBHOOK_SECRET` | Webhook HMAC signing secret | - |
+| `ASG_GATEWAY_PRIVATE_TOKEN` | Phone app connection token | `openssl rand -hex 32` |
+| `DATABASE_URL` | MySQL connection string | `mysql://user:...@mysql:3306/relay` |
+| `MYSQL_ROOT_PASSWORD` | MySQL root password | - |
+| `APP_URL` | External access URL | `https://your-domain.com` |
+| `CRON_SECRET` | Cron endpoint authentication | - |
+| `HEALTH_CHECK_DEVICE_THRESHOLD_MINUTES` | Device disconnect threshold (min) | `30` |
 
-## 헬스체크
+## Health Check
 
-- `GET /api/health` — 시스템 상태 조회
-- `GET /api/cron/health-monitor` — 주기적 모니터링 (Bearer 토큰 필요)
+- `GET /api/health` — System status
+- `GET /api/cron/health-monitor` — Periodic monitoring (Bearer token required)
 
-## 라이선스
+## License
 
 MIT
