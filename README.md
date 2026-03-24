@@ -98,14 +98,23 @@ docker compose up -d
 npx prisma migrate dev --name init
 ```
 
-### 7. Android SMS Gateway 앱 설정
+### 7. 기본 메시지 앱 설정 (RCS 비활성화 필수)
+
+> **⚠️ 중요**: Android SMS Gateway는 기존 SMS/MMS 프로토콜 기반으로 동작합니다. **RCS(Rich Communication Services)가 활성화된 메시지 앱에서는 웹훅이 정상 처리되지 않습니다.**
+
+- **삼성 기본 메시지 앱**: RCS가 내장되어 있어 **별도로 RCS를 해제할 수 없습니다**. 따라서 삼성 기본 메시지 앱으로는 웹훅 수신이 동작하지 않습니다.
+- **해결 방법**: [Google 메시지](https://play.google.com/store/apps/details?id=com.google.android.apps.messaging) 앱을 설치한 뒤 **기본 SMS 앱으로 설정**하고, Google 메시지 설정에서 **RCS 채팅(채팅 기능)을 비활성화**하면 정상 동작합니다.
+
+**정리하면, SMS Gateway가 동작하려면 RCS 해제가 가능한 메시지 앱이 기본 메시지 앱으로 설정되어 있어야 합니다.**
+
+### 8. Android SMS Gateway 앱 설정
 
 1. [Android SMS Gateway](https://github.com/android-sms-gateway/android) 앱을 폰에 설치
 2. 앱 설정에서 서버 URL 입력: `https://your-domain.com/api/mobile/`
 3. Private Token 입력: `.env`의 `ASG_GATEWAY_PRIVATE_TOKEN` 값
 4. 연결 확인
 
-### 8. Slack App 설정
+### 9. Slack App 설정
 
 1. [Slack API](https://api.slack.com/apps)에서 앱 생성
 2. Bot Token Scopes 추가: `chat:write`, `commands`, `users:read`
