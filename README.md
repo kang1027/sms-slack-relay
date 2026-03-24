@@ -18,30 +18,7 @@ Automatically relays SMS received on an Android phone to a Slack channel, and se
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Docker Compose                        │
-│                                                          │
-│  ┌──────────┐   ┌──────────────┐   ┌─────────────────┐  │
-│  │  nginx   │──▶│  app (relay) │──▶│  sms-backend    │  │
-│  │ (reverse │   │  Next.js     │   │  (ASG Server)   │  │
-│  │  proxy)  │   │  port:3000   │   │  port:3080      │  │
-│  │ 80/443   │   └──────┬───────┘   └────────┬────────┘  │
-│  └──────────┘          │                     │           │
-│                        ▼            ┌────────┴────────┐  │
-│                   ┌─────────┐      │  sms-worker     │  │
-│                   │  MySQL  │◀─────┘                    │
-│                   │  8.0    │                           │
-│                   └─────────┘                           │
-└─────────────────────────────────────────────────────────┘
-         ▲                              ▲
-         │ HTTPS                        │ WebSocket/Polling
-         │                              │
-    ┌────┴────┐                    ┌────┴────┐
-    │  Slack  │                    │ Android │
-    │  API    │                    │  Phone  │
-    └─────────┘                    └─────────┘
-```
+![Architecture](./images/architecture.png)
 
 ## Tech Stack
 
