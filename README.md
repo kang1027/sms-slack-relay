@@ -171,6 +171,18 @@ npx prisma migrate dev --name init
 - `GET /api/health` — System status
 - `GET /api/cron/health-monitor` — Periodic monitoring (Bearer token required)
 
+## Deployment Notes
+
+> **⚠️ This project is NOT suitable for serverless platforms (e.g., Vercel, AWS Lambda).**
+
+This system requires persistent connections and background processes:
+
+- **SMS Gateway (ASG Server)** maintains a persistent WebSocket/Polling connection with the Android phone
+- **SMS Worker** runs continuously in the background
+- **MySQL** must be always available
+
+Serverless platforms wake up only on incoming requests and cannot maintain persistent connections or background workers. **You must deploy this on a VPS or dedicated server** running Docker Compose (e.g., AWS EC2, Oracle Cloud Free Tier, home server, etc.).
+
 ## License
 
 MIT

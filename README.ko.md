@@ -171,6 +171,18 @@ npx prisma migrate dev --name init
 - `GET /api/health` — 시스템 상태 조회
 - `GET /api/cron/health-monitor` — 주기적 모니터링 (Bearer 토큰 필요)
 
+## 배포 안내
+
+> **⚠️ 이 프로젝트는 서버리스 플랫폼(Vercel, AWS Lambda 등)에 배포할 수 없습니다.**
+
+이 시스템은 상시 연결과 백그라운드 프로세스가 필요합니다:
+
+- **SMS Gateway (ASG Server)**: Android 폰과 WebSocket/Polling으로 상시 연결 유지
+- **SMS Worker**: 백그라운드에서 지속 실행
+- **MySQL**: 항상 가동 상태 필요
+
+서버리스 플랫폼은 요청이 올 때만 함수를 실행하므로, 상시 연결이나 백그라운드 워커를 유지할 수 없습니다. **반드시 Docker Compose를 실행할 수 있는 VPS 또는 전용 서버에 배포해야 합니다** (예: AWS EC2, Oracle Cloud 프리 티어, 홈 서버 등).
+
 ## 라이선스
 
 MIT
