@@ -1,5 +1,7 @@
 # SMS-Slack Relay
 
+[English](./README.en.md) | 한국어
+
 Android SMS Gateway ↔ Slack 양방향 릴레이 시스템.
 
 Android 폰에서 수신한 SMS를 자동으로 Slack 채널에 릴레이하고, Slack에서 답장하면 해당 폰을 통해 SMS를 발송합니다.
