@@ -134,20 +134,42 @@ export async function GET(request: NextRequest) {
       logger.error({ error }, "장애 알림 발송 실패");
     }
   } else if (!wasHealthy && currentlyHealthy) {
-    // 장애 → 정상: 복구 알림 (asc로 첫 번째 장애 시점 조회)
-    const firstFailLog = await prisma.healthCheckLog.findFirst({
+    // 장애 → 정상: 복구 알림 (이번 장애 구간의 시작점 조회)
+    const lastHealthyLog = await prisma.healthCheckLog.findFirst({
       where: {
-        OR: [
-          { mysqlStatus: { not: "ok" } },
-          { gatewayStatus: { not: "ok" } },
-          { deviceStatus: { not: "ok" } },
-        ],
+        mysqlStatus: "ok",
+        gatewayStatus: "ok",
+        deviceStatus: "ok",
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
+      skip: 1, // 방금 생성한 현재(정상) 로그 제외
     });
 
-    const downMinutes = firstFailLog
-      ? Math.floor((Date.now() - firstFailLog.createdAt.getTime()) / (1000 * 60))
+    const firstFailOfIncident = lastHealthyLog
+      ? await prisma.healthCheckLog.findFirst({
+          where: {
+            createdAt: { gt: lastHealthyLog.createdAt },
+            OR: [
+              { mysqlStatus: { not: "ok" } },
+              { gatewayStatus: { not: "ok" } },
+              { deviceStatus: { not: "ok" } },
+            ],
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : await prisma.healthCheckLog.findFirst({
+          where: {
+            OR: [
+              { mysqlStatus: { not: "ok" } },
+              { gatewayStatus: { not: "ok" } },
+              { deviceStatus: { not: "ok" } },
+            ],
+          },
+          orderBy: { createdAt: "asc" },
+        });
+
+    const downMinutes = firstFailOfIncident
+      ? Math.floor((Date.now() - firstFailOfIncident.createdAt.getTime()) / (1000 * 60))
       : 0;
 
     const message = buildHealthRecoveryMessage({
