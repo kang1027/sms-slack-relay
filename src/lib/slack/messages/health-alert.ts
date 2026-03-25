@@ -14,6 +14,8 @@ interface HealthAlertParams {
 }
 
 interface HealthRecoveryParams {
+  downStartedAt: Date;
+  recoveredAt: Date;
   downDurationMinutes: number;
 }
 
@@ -29,8 +31,8 @@ function statusLabel(status: string): string {
   return "장애";
 }
 
-function formatTime(): string {
-  return new Date().toLocaleString("ko-KR", {
+function formatTime(date: Date = new Date()): string {
+  return date.toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "numeric",
@@ -83,7 +85,7 @@ export function buildHealthAlertMessage(params: HealthAlertParams) {
 }
 
 export function buildHealthRecoveryMessage(params: HealthRecoveryParams) {
-  const { downDurationMinutes } = params;
+  const { downStartedAt, recoveredAt, downDurationMinutes } = params;
 
   const blocks: Record<string, unknown>[] = [
     {
@@ -103,13 +105,11 @@ export function buildHealthRecoveryMessage(params: HealthRecoveryParams) {
           `:white_check_mark: *SMS Gateway*: 정상`,
           `:white_check_mark: *기기 연결*: 정상`,
           ``,
+          `장애 발생: ${formatTime(downStartedAt)}`,
+          `장애 복구: ${formatTime(recoveredAt)}`,
           `장애 지속 시간: 약 ${downDurationMinutes}분`,
         ].join("\n"),
       },
-    },
-    {
-      type: "context",
-      elements: [{ type: "mrkdwn", text: `복구 시각: ${formatTime()}` }],
     },
   ];
 

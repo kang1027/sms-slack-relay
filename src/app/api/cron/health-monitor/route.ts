@@ -168,11 +168,15 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: "asc" },
         });
 
+    const now = new Date();
+    const downStartedAt = firstFailOfIncident?.createdAt ?? now;
     const downMinutes = firstFailOfIncident
-      ? Math.floor((Date.now() - firstFailOfIncident.createdAt.getTime()) / (1000 * 60))
+      ? Math.floor((now.getTime() - firstFailOfIncident.createdAt.getTime()) / (1000 * 60))
       : 0;
 
     const message = buildHealthRecoveryMessage({
+      downStartedAt,
+      recoveredAt: now,
       downDurationMinutes: downMinutes,
     });
 
